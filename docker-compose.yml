@@ -1,0 +1,31 @@
+services:
+  battleshipsapi:
+    container_name: battleshipsapi
+    image: xor111/rep2
+    depends_on:
+      - postgres_battleships
+    build:
+      context: BattleshipsAPI
+      dockerfile: Dockerfile
+    ports:
+      - "80:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+  postgres_battleships:
+    image: postgres:15
+    container_name: postgres_battleships
+    restart: always
+    environment:
+      POSTGRES_DB: battleshipsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    expose:
+      - "5432"
+    volumes:
+      - postgres_battleships_data:/var/lib/postgresql/data
+volumes:
+  postgres_battleships_data:
+networks:
+  proxy-net:
+    external: true
+    name: proxy-net
