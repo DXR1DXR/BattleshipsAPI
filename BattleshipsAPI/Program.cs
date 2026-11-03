@@ -58,7 +58,8 @@ namespace BattleshipsAPI
                 context.Items["PlayerLogin"] = playerLogin;
                 await next(context);
             });
-            app.MapGet("/", () => "Hello World!");
+
+            //
             app.MapHub<NotificationHub>("/notifications");
             app.MapControllers();
             app.UseSwagger();
