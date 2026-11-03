@@ -60,6 +60,7 @@ namespace BattleshipsAPI
             });
 
             //
+
             app.MapHub<NotificationHub>("/notifications");
             app.MapControllers();
             app.UseSwagger();
