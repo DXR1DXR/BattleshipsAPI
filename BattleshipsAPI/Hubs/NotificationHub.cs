@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
 namespace BattleshipsAPI.Hubs
@@ -36,5 +37,10 @@ namespace BattleshipsAPI.Hubs
 
         public static IEnumerable<string> GetConnections(string login) =>
             Connections.Where(x => x.Value == login).Select(x => x.Key);
+        public static string GetConnectionId(string login)
+        {
+            //TODO: При отправке уведомлений на таймер вызывается fallback id
+            return GetConnections(login).FirstOrDefault() ?? "fdhdfghdfhfxcvhgb";
+        }
     }
 }

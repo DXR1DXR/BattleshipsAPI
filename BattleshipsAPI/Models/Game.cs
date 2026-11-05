@@ -10,6 +10,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace BattleshipsAPI.Models;
 
@@ -20,8 +21,6 @@ public partial class Game : INotifyPropertyChanged
         StartTimeStamp = DateTime.Now;
         Creator = creator;
         Opponent = null;
-        CreatorBoats = new List<Boat>();
-        OpponentBoats = new List<Boat>();
         Steps = new List<Step>();
         LastPingTimeStamp = DateTime.Now;
         hub = nHub;
@@ -36,12 +35,45 @@ public partial class Game : INotifyPropertyChanged
         {
             _Opponent = value;
             if (value is null) return;
-            var connectionId = NotificationHub.GetConnections(Creator.Login).FirstOrDefault() ?? "fdhdfghdfhfxcvhgb";
+            var connectionId = NotificationHub.GetConnectionId(Creator.Login);
             hub.Clients.Client(connectionId).SendAsync("OpponentConnected", "");
         }
     }
-    public List<Boat> CreatorBoats { get; set; }
-    public List<Boat> OpponentBoats { get; set; }
+    List<Boat> _CreatorBoats = new List<Boat>();
+    public List<Boat> CreatorBoats { get => _CreatorBoats; set
+        {
+            _CreatorBoats = value;
+            if (ShipsSetTask is null)
+                ShipsSetTask = Task.Run(ShipsSet);
+        }
+    }
+    List<Boat> _OpponentBoats = new List<Boat>();
+    public List<Boat> OpponentBoats { get => _OpponentBoats; set
+        {
+            _CreatorBoats = value;
+            if (ShipsSetTask is null)
+                ShipsSetTask = Task.Run(ShipsSet);
+        }
+    }
+    Task ShipsSetTask;
+    public async Task ShipsSet()
+    {
+        List<string> clients = [NotificationHub.GetConnectionId(Creator.Login), NotificationHub.GetConnectionId(Opponent.Login)];
+        int seconds = 30;
+        while (true)
+        {
+            Thread.Sleep(1000);
+            if (CreatorBoats.Count != 0 && OpponentBoats.Count != 0)
+            {
+                return;
+            }
+            clients.ForEach(x =>
+            {
+                hub.Clients.Client(x).SendAsync("ShipsSet", seconds);
+            });
+            seconds--;
+        }
+    }
     public List<Step> Steps { get; set; }
     public event PropertyChangedEventHandler PropertyChanged;
     public void OnPropertyChanged([CallerMemberName] string prop = "")
