@@ -25,58 +25,11 @@ public partial class Game : INotifyPropertyChanged
         Steps = new List<Step>();
         LastPingTimeStamp = DateTime.Now;
         hub = nHub;
-        IsCreatorAlive = true;
-        CancellationPending = false;
-        Task.Run(Pinger);
-    }
-    private void Pinger()
-    {
-        while (true)
-        {
-            Thread.Sleep(10000);
-            if (Opponent is not null) return;
-            if (CancellationPending) return;
-            var connectionId = NotificationHub.GetConnections(Creator.Login).FirstOrDefault() ?? "fdhdfghdfhfxcvhgb";
-            hub.Clients.Client(connectionId).SendAsync("Ping", "");
-            Thread.Sleep(2000);
-            if (Opponent is not null) return;
-            if (CancellationPending) return;
-            var dt = DateTime.Now;
-            var isAlive = dt - LastPingTimeStamp < new TimeSpan(0, 0, 10);
-            Console.WriteLine($"{DateTime.Now} isalive {isAlive} lpts {LastPingTimeStamp}");
-            if (isAlive)
-            {
-                continue;
-            }
-            IsCreatorAlive = false;
-            break;
-        }
-        
     }
     private IHubContext<NotificationHub> hub;
-    private bool _CancellationPending;
-    [JsonIgnore]
-    public bool CancellationPending
-    {
-        get => _CancellationPending; set
-        {
-            _IsCreatorAlive = value;
-            if (value == false) return;
-            OnPropertyChanged("CancellationPending");
-        }
-    }
     public DateTime StartTimeStamp { get; set; }
     [JsonIgnore]
     public DateTime LastPingTimeStamp { get; set; }
-    private bool _IsCreatorAlive;
-    [JsonIgnore]
-    public bool IsCreatorAlive { get => _IsCreatorAlive; set
-        {
-            _IsCreatorAlive = value;
-            if (value == true) return;
-            OnPropertyChanged("IsCreatorAlive");
-        }
-    }
     public Player Creator { get; set; }
     private Player _Opponent;
     public Player Opponent { get => _Opponent; set

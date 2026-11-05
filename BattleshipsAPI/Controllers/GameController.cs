@@ -40,13 +40,13 @@ namespace BattleshipsAPI.Controllers
             ActiveGames.CreateGame(db.Player.First(x => x.Login == userLogin));
             return Created();
         }
-        [HttpDelete]
-        public ActionResult Delete()
-        {
-            string userLogin = (string)HttpContext.Items["PlayerLogin"]!;
-            ActiveGames.CancelGame(userLogin);
-            return NoContent();
-        }
+        //[HttpDelete]
+        //public ActionResult Delete()
+        //{
+        //    string userLogin = (string)HttpContext.Items["PlayerLogin"]!;
+        //    ActiveGames.CancelGame(userLogin);
+        //    return NoContent();
+        //}
         [HttpPost("connect")]
         public ActionResult Connect([FromBody] string creatorNickName)
         {

@@ -2,6 +2,7 @@
 using BattleshipsAPI.Models;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace BattleshipsAPI
 {
@@ -10,10 +11,11 @@ namespace BattleshipsAPI
         public ActiveGames(IHubContext<NotificationHub> hub)
         {
             this.hub = hub;
+            _Games.CollectionChanged += _Games_CollectionChanged;
         }
         private readonly IHubContext<NotificationHub> hub;
         private object locker = new();
-        private List<Game> _Games = new List<Game>();
+        private ObservableCollection<Game> _Games = new ObservableCollection<Game>();
         public ReadOnlyCollection<Game> Games { get => _Games.AsReadOnly(); }
         public void UpdatePing(string userLogin)
         {
@@ -38,7 +40,6 @@ namespace BattleshipsAPI
                 game.PropertyChanged += Game_PropertyChanged;
                 Console.WriteLine($"{DateTime.Now} Game Created");
                 _Games.Add(game);
-                hub.Clients.All.SendAsync("NewGame", new GameDTO(game.StartTimeStamp, game.Creator.NickName));
             }
         }
         public bool ContainsNickName(string nickName)
@@ -56,16 +57,16 @@ namespace BattleshipsAPI
             }
             return true;
         }
-        public void CancelGame(string playerLogin)
+        public void TryRemove(string creatorLogin)
         {
             lock (locker)
             {
-                var game = _Games.FirstOrDefault(x => x.Creator.Login == playerLogin);
+                var game = _Games.FirstOrDefault(x => x.Creator.Login == creatorLogin);
                 if (game is null) return;
-                game.CancellationPending = true;
+                if (game.Opponent is not null) return;
                 _Games.Remove(game);
             }
-            
+
         }
 
         private void Game_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -75,6 +76,20 @@ namespace BattleshipsAPI
                 var game = (Game)sender!;
                 hub.Clients.All.SendAsync("RemovedGame", new GameDTO(game.StartTimeStamp, game.Creator.NickName));
                 _Games.Remove(_Games.First(x => x.Creator.Login == game.Creator.Login));
+            }
+        }
+        private void _Games_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            {
+                var game = (e.NewItems![0] as Game)!;
+                hub.Clients.All.SendAsync("NewGame", new GameDTO(game.StartTimeStamp, game.Creator.NickName));
+            }
+            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
+            {
+                var game = (e.OldItems![0] as Game)!;
+                hub.Clients.All.SendAsync("RemovedGame", new GameDTO(game.StartTimeStamp, game.Creator.NickName));
             }
         }
     }
