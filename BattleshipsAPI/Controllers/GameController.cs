@@ -175,5 +175,19 @@ namespace BattleshipsAPI.Controllers
             }
             return Ok();
         }
+        [HttpGet("boats")]
+        public ActionResult GetBoats()
+        {
+            var playerLogin = (string)HttpContext.Items["PlayerLogin"]!;
+            var games = ActiveGames.Games.Where(x => x.Creator.Login == playerLogin || x.Opponent.Login == playerLogin).ToList();
+            if (games.Count == 0)
+                return Forbid("Вы не в игре");
+            if (games.Count > 1)
+                return Forbid("Вы в 2х играх (как это произошло?)");
+            var game = games.First();
+            bool isPlayerCreator = game.Creator.Login == playerLogin;
+            return Ok(isPlayerCreator ? game.CreatorBoats : game.OpponentBoats);
+        }
+        
     }
 }

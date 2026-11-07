@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -50,7 +51,7 @@ public partial class Game : INotifyPropertyChanged
     List<Boat> _OpponentBoats = new List<Boat>();
     public List<Boat> OpponentBoats { get => _OpponentBoats; set
         {
-            _CreatorBoats = value;
+            _OpponentBoats = value;
             if (ShipsSetTask is null)
                 ShipsSetTask = Task.Run(ShipsSet);
         }
@@ -59,19 +60,36 @@ public partial class Game : INotifyPropertyChanged
     public async Task ShipsSet()
     {
         List<string> clients = [NotificationHub.GetConnectionId(Creator.Login), NotificationHub.GetConnectionId(Opponent.Login)];
-        int seconds = 30;
-        while (true)
+        Console.WriteLine($"clientIds on ships set: {JsonSerializer.Serialize(clients)}");
+        Console.WriteLine($"clientLogins on ships set: {JsonSerializer.Serialize(new {Creator = Creator.Login, Opponent = Opponent.Login})}");
+        int seconds = 60;
+        while (seconds >= 0)
         {
             Thread.Sleep(1000);
             if (CreatorBoats.Count != 0 && OpponentBoats.Count != 0)
             {
-                return;
+                break;
             }
             clients.ForEach(x =>
             {
                 hub.Clients.Client(x).SendAsync("ShipsSet", seconds);
             });
             seconds--;
+        }
+        if (CreatorBoats.Count == 0)
+        {
+            //Оппонент победил
+        }
+        else if (OpponentBoats.Count == 0)
+        {
+            //Создатель победил
+        }
+        else
+        {
+            clients.ForEach(x =>
+            {
+                hub.Clients.Client(x).SendAsync("AllShipsSet", "");
+            });
         }
     }
     public List<Step> Steps { get; set; }
