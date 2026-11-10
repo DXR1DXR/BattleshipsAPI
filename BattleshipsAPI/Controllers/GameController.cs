@@ -40,13 +40,6 @@ namespace BattleshipsAPI.Controllers
             ActiveGames.CreateGame(db.Player.First(x => x.Login == userLogin));
             return Created();
         }
-        //[HttpDelete]
-        //public ActionResult Delete()
-        //{
-        //    string userLogin = (string)HttpContext.Items["PlayerLogin"]!;
-        //    ActiveGames.CancelGame(userLogin);
-        //    return NoContent();
-        //}
         [HttpPost("connect")]
         public ActionResult Connect([FromBody] string creatorNickName)
         {
@@ -188,6 +181,60 @@ namespace BattleshipsAPI.Controllers
             bool isPlayerCreator = game.Creator.Login == playerLogin;
             return Ok(isPlayerCreator ? game.CreatorBoats : game.OpponentBoats);
         }
-        
+        public record ShotDTO(bool IsHit, bool IsDestroyed, Boat? Boat);
+        [HttpPost("shoot/{x}/{y}")]
+        public ActionResult PostShoot(int x, int y)
+        {
+            var playerLogin = (string)HttpContext.Items["PlayerLogin"]!;
+            var games = ActiveGames.Games.Where(x => x.Creator.Login == playerLogin || x.Opponent.Login == playerLogin).ToList();
+            if (games.Count == 0)
+                return Forbid("Вы не в игре");
+            if (games.Count > 1)
+                return Forbid("Вы в 2х играх (как это произошло?)");
+            var game = games.First();
+            bool isPlayerCreator = game.Creator.Login == playerLogin;
+            var boats = isPlayerCreator ? game.OpponentBoats : game.CreatorBoats;
+            var player = isPlayerCreator ? game.Creator : game.Opponent;
+            if (game.Steps.Any(c => c.Player == player && c.X == x && c.Y == y))
+                return BadRequest();
+            game.Steps.Add(new Step(player, x, y));
+            var isHitValue = isHit(boats, x, y);
+            var isDestroyedValue = isDestroyed(boats, game.Steps.Where(x => x.Player == player).ToList());
+            return Ok(new ShotDTO(
+                isHitValue,
+                isDestroyedValue,
+                isDestroyedValue ? boats.First(c => isBoatHit(c, x, y)) : null
+            ));
+        }
+        bool isBoatHit(Boat boat, int x, int y)
+        {
+            return boat.Y1 <= y && y <= boat.Y2 && boat.X1 <= x && x <= boat.X2;
+        }
+        bool isHit(List<Boat> boats, int x, int y) =>
+            boats.Any(c => isBoatHit(c, x, y));
+        bool isDestroyed(List<Boat> boats, List<Step> playerSteps)
+        {
+            var lastStep = playerSteps.Last();
+            var lastX = lastStep.X;
+            var lastY = lastStep.Y;
+            if (!isHit(boats, lastX, lastY)) return false;
+            var hitBoat = boats.First(c => isBoatHit(c, lastX, lastY));
+            List<Tuple<int, int>> boatCoordinates = [];
+            if (hitBoat.X1 == hitBoat.X2)
+            {
+                int start = hitBoat.Y1 > hitBoat.Y2 ? hitBoat.Y2 : hitBoat.Y1;
+                int end = hitBoat.Y1 > hitBoat.Y2 ? hitBoat.Y1 : hitBoat.Y2;
+                for (int i = start; i <= end; i++)
+                    boatCoordinates.Add(Tuple.Create(hitBoat.X1, i));
+            }
+            else
+            {
+                int start = hitBoat.X1 > hitBoat.X2 ? hitBoat.X2 : hitBoat.X1;
+                int end = hitBoat.X1 > hitBoat.X2 ? hitBoat.X1 : hitBoat.X2;
+                for (int i = start; i <= end; i++)
+                    boatCoordinates.Add(Tuple.Create(i, hitBoat.Y1));
+            }
+            return boatCoordinates.All(x => playerSteps.Any(y => y.X == x.Item1 && y.Y == x.Item2));
+        }
     }
 }

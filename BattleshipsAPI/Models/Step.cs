@@ -11,6 +11,14 @@ namespace BattleshipsAPI.Models;
 
 public partial class Step
 {
+    public Step(Player player, int x, int y)
+    {
+        Player = player;
+        X = x;
+        Y = y;
+        TimeStamp = DateTime.Now;
+    }
+
     public Player Player { get; set; }
 
     public int X { get; set; }
