@@ -90,6 +90,42 @@ public partial class Game : INotifyPropertyChanged
             {
                 hub.Clients.Client(x).SendAsync("AllShipsSet", "");
             });
+            Start();
+        }
+    }
+    public void Start()
+    {
+        GameCycleTask = Task.Run(GameCycle);
+    }
+    Task GameCycleTask;
+    public async Task GameCycle()
+    {
+        List<string> clients = [NotificationHub.GetConnectionId(Creator.Login), NotificationHub.GetConnectionId(Opponent.Login)];
+        var lastStep = Steps.LastOrDefault();
+        int seconds = 30;
+        while (seconds >= 0)
+        {
+            Thread.Sleep(1000);
+            var newLastStep = Steps.LastOrDefault();
+            if (newLastStep != lastStep)
+            {
+                //TODO: проверить, не подбиты ли все корабли
+                seconds = 30;
+            }
+            clients.ForEach(x =>
+            {
+                hub.Clients.Client(x).SendAsync("GameTimer", seconds);
+            });
+            //TODO: отправлять OpponentHit / OpponentMissed
+            seconds--;
+        }
+        if (lastStep.Player == Opponent)
+        {
+            //Оппонент победил
+        }
+        else
+        {
+            //Создатель победил
         }
     }
     public List<Step> Steps { get; set; }
