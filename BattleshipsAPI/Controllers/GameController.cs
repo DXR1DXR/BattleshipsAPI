@@ -198,14 +198,14 @@ namespace BattleshipsAPI.Controllers
             var player = isPlayerCreator ? game.Creator : game.Opponent;
             if (game.Steps.Count == 0 && game.Creator != player)
             {
-                return Forbid("Ваш ход ещё не наступил");
+                return StatusCode(403, "Ваш ход ещё не наступил");
             }
             if (game.Steps.Count != 0)
             {
                 var lastStep = game.Steps.Last();
                 if ((lastStep.Player == player && !isHit(boats, lastStep.X, lastStep.Y)) || (lastStep.Player != player && isHit(selfBoats, lastStep.X, lastStep.Y)))
                 {
-                    return Forbid("Вы уже походили");
+                    return StatusCode(403, "Вы уже походили");
                 }
             }
             if (game.Steps.Any(c => c.Player == player && c.X == x && c.Y == y))
@@ -213,6 +213,11 @@ namespace BattleshipsAPI.Controllers
             game.Steps.Add(new Step(player, x, y));
             var isHitValue = isHit(boats, x, y);
             var isDestroyedValue = isDestroyed(boats, game.Steps.Where(x => x.Player == player).ToList());
+            if (game.Steps.Where(x => x.Player == player && isHit(boats, x.X, x.Y)).Count() >= 20)
+            {
+                Console.WriteLine($"Победил {player.NickName}");
+                game.Winner = player;
+            }
             return Ok(new ShotDTO(
                 isHitValue,
                 isDestroyedValue,

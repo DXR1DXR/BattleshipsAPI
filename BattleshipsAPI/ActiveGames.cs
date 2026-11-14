@@ -1,5 +1,6 @@
 ﻿using BattleshipsAPI.Hubs;
 using BattleshipsAPI.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -8,11 +9,13 @@ namespace BattleshipsAPI
 {
     public class ActiveGames
     {
-        public ActiveGames(IHubContext<NotificationHub> hub)
+        public ActiveGames(IHubContext<NotificationHub> hub, IServiceProvider provider)
         {
             this.hub = hub;
             _Games.CollectionChanged += _Games_CollectionChanged;
+            Provider = provider;
         }
+        IServiceProvider Provider;
         private readonly IHubContext<NotificationHub> hub;
         private object locker = new();
         private ObservableCollection<Game> _Games = new ObservableCollection<Game>();
@@ -36,7 +39,7 @@ namespace BattleshipsAPI
         {
             lock (locker)
             {
-                var game = new Game(player, hub);
+                var game = new Game(player, hub, this);
                 game.PropertyChanged += Game_PropertyChanged;
                 Console.WriteLine($"{DateTime.Now} Game Created");
                 _Games.Add(game);
@@ -68,7 +71,23 @@ namespace BattleshipsAPI
             }
 
         }
-
+        public void GameFinish(Game game)
+        {
+            var winner = game.Winner;
+            var loser = game.Winner == game.Creator ? game.Opponent : game.Creator;
+            string winnerConnId = NotificationHub.GetGameConnectionId(winner.Login);
+            string loserConnId = NotificationHub.GetGameConnectionId(loser.Login);
+            hub.Clients.Client(winnerConnId).SendAsync("GameWon", "");
+            hub.Clients.Client(loserConnId).SendAsync("GameLost", "");
+            using (var scope = Provider.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<BattleshipsDBContext>();
+                db.Player.First(x => x.Login == winner.Login).WinCount += 1;
+                db.Player.First(x => x.Login == loser.Login).LoseCount += 1;
+                db.SaveChanges();
+            }
+            _Games.Remove(game);
+        }
         private void Game_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             lock (locker)

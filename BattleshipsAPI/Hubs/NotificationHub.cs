@@ -49,10 +49,17 @@ namespace BattleshipsAPI.Hubs
 
         public static IEnumerable<string> GetConnections(string login) =>
             Connections.Where(x => x.Value.Item1 == login).Select(x => x.Key);
+        public static IEnumerable<string> GetGameConnections(string login) =>
+            Connections.Where(x => x.Value.Item1 == login && x.Value.Item2 == "Game").Select(x => x.Key);
         public static string GetConnectionId(string login)
         {
             //TODO: При отправке уведомлений на таймер вызывается fallback id
             return GetConnections(login).FirstOrDefault() ?? "fdhdfghdfhfxcvhgb";
+        }
+        public static string GetGameConnectionId(string login)
+        {
+            //TODO: При отправке уведомлений на таймер вызывается fallback id
+            return GetGameConnections(login).FirstOrDefault() ?? "fdhdfghdfhfxcvhgb";
         }
     }
 }

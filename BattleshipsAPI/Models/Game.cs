@@ -17,7 +17,7 @@ namespace BattleshipsAPI.Models;
 
 public partial class Game : INotifyPropertyChanged
 {
-    public Game(Player creator, IHubContext<NotificationHub> nHub)
+    public Game(Player creator, IHubContext<NotificationHub> nHub, ActiveGames activeGames)
     {
         StartTimeStamp = DateTime.Now;
         Creator = creator;
@@ -25,11 +25,14 @@ public partial class Game : INotifyPropertyChanged
         Steps = new List<Step>();
         LastPingTimeStamp = DateTime.Now;
         hub = nHub;
+        _ActiveGames = activeGames;
     }
+    ActiveGames _ActiveGames;
     private IHubContext<NotificationHub> hub;
     public DateTime StartTimeStamp { get; set; }
     [JsonIgnore]
     public DateTime LastPingTimeStamp { get; set; }
+    public Player Winner { get; set; } = null;
     public Player Creator { get; set; }
     private Player _Opponent;
     public Player Opponent { get => _Opponent; set
@@ -100,33 +103,40 @@ public partial class Game : INotifyPropertyChanged
     Task GameCycleTask;
     public async Task GameCycle()
     {
-        List<string> clients = [NotificationHub.GetConnectionId(Creator.Login), NotificationHub.GetConnectionId(Opponent.Login)];
+        Thread.Sleep(3000);
+        List<string> clients = [NotificationHub.GetGameConnectionId(Creator.Login), NotificationHub.GetGameConnectionId(Opponent.Login)];
         var lastStep = Steps.LastOrDefault();
-        int seconds = 30;
+        int seconds = 300;
         while (seconds >= 0)
         {
-            Thread.Sleep(1000);
+            Thread.Sleep(100);
+            if (Winner is not null) break;
             var newLastStep = Steps.LastOrDefault();
             if (newLastStep != lastStep)
             {
-                //TODO: проверить, не подбиты ли все корабли
-                seconds = 30;
+                seconds = 300;
+                lastStep = newLastStep;
             }
             clients.ForEach(x =>
             {
-                hub.Clients.Client(x).SendAsync("GameTimer", seconds);
+                hub.Clients.Client(x).SendAsync("GameTimer", seconds / 10);
             });
             //TODO: отправлять OpponentHit / OpponentMissed
             seconds--;
         }
-        if (lastStep.Player == Opponent)
+        if (lastStep is null)
         {
-            //Оппонент победил
+            Winner = Creator;
         }
-        else
+        else if (lastStep.Player == Opponent && Winner is null)
         {
-            //Создатель победил
+            Winner = Opponent;
         }
+        else if (lastStep.Player == Creator && Winner is null)
+        {
+            Winner = Creator;
+        }
+        _ActiveGames.GameFinish(this);
     }
     public List<Step> Steps { get; set; }
     public event PropertyChangedEventHandler PropertyChanged;
